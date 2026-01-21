@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}{{ member.full_name }} — Member Outreach Portal{% endblock %}
+{% block nav_members %}active{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/members/">Members</a></li>
+        <li class="breadcrumb-item active">{{ member.full_name }}</li>
+    </ol>
+</nav>
+
+<div class="row g-4 mb-4">
+    <!-- Member Info Card -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="member-avatar me-3">
+                        {{ member.first_name.0 }}{{ member.last_name.0 }}
+                    </div>
+                    <div>
+                        <h4 class="mb-0">{{ member.full_name }}</h4>
+                        <span class="text-muted">{{ member.member_id }}</span>
+                    </div>
+                </div>
+                <hr>
+                <dl class="row mb-0">
+                    <dt class="col-5">DOB</dt>
+                    <dd class="col-7">{{ member.date_of_birth }}</dd>
+                    <dt class="col-5">Gender</dt>
+                    <dd class="col-7">{{ member.get_gender_display }}</dd>
+                    <dt class="col-5">Phone</dt>
+                    <dd class="col-7">{{ member.phone }}</dd>
+                    <dt class="col-5">Email</dt>
+                    <dd class="col-7">{{ member.email|default:"—" }}</dd>
+                    <dt class="col-5">Zip Code</dt>
+                    <dd class="col-7">{{ member.zip_code }}</dd>
+                    <dt class="col-5">Plan</dt>
+                    <dd class="col-7">{{ member.insurance_plan }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Score Card -->
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Risk Assessment</h5>
+                    <button class="btn btn-primary btn-sm" id="predict-btn" onclick="predictNoShow()">
+                        <i class="bi bi-cpu me-1"></i> Predict No-Show
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <div class="risk-score-circle {% if member.risk_score >= 0.7 %}risk-high{% elif member.risk_score >= 0.4 %}risk-medium{% else %}risk-low{% endif %}">
+                            <span class="risk-score-value">{{ member.risk_score|floatformat:0 }}%</span>
+                        </div>
+                        <p class="mt-2 mb-0 fw-semibold">
+                            {% if member.risk_score >= 0.7 %}High Risk
+                            {% elif member.risk_score >= 0.4 %}Medium Risk
+                            {% else %}Low Risk{% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-8">
+                        <div id="risk-factors">
+                            <p class="text-muted">Click "Predict No-Show" to see risk factors for the next appointment.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h5 class="mb-0">No-Show Rate: <strong>{{ member.no_show_rate|floatformat:1 }}%</strong></h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Appointment History -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 pt-3">
+        <h5 class="mb-0">Appointment History</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Provider</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in appointments %}
+                    <tr>
+                        <td>{{ appt.appointment_date|date:"M d, Y g:i A" }}</td>
+                        <td>{{ appt.get_appointment_type_display }}</td>
+                        <td>{{ appt.provider_name }}</td>
+                        <td>{{ appt.location }}</td>
+                        <td>
+                            {% if appt.status == "completed" %}
+                                <span class="badge bg-success">Completed</span>
+                            {% elif appt.status == "no_show" %}
+                                <span class="badge bg-danger">No Show</span>
+                            {% elif appt.status == "scheduled" %}
+                                <span class="badge bg-primary">Scheduled</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Cancelled</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-3 text-muted">No appointments found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Outreach History -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-3">
+        <h5 class="mb-0">Outreach History</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Outcome</th>
+                        <th>Coordinator</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in outreach_events %}
+                    <tr>
+                        <td>{{ event.outreach_date|date:"M d, Y g:i A" }}</td>
+                        <td>{{ event.get_outreach_type_display }}</td>
+                        <td>
+                            {% if event.outcome == "reached" %}
+                                <span class="badge bg-success">Reached</span>
+                            {% elif event.outcome == "voicemail" %}
+                                <span class="badge bg-warning text-dark">Voicemail</span>
+                            {% elif event.outcome == "no_answer" %}
+                                <span class="badge bg-secondary">No Answer</span>
+                            {% else %}
+                                <span class="badge bg-danger">Wrong Number</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ event.coordinator_name }}</td>
+                        <td>{{ event.notes|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-3 text-muted">No outreach events recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function predictNoShow() {
+    const btn = document.getElementById('predict-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Predicting...';
+
+    fetch('/api/members/members/{{ member.pk }}/risk_score/')
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-cpu me-1"></i> Predict No-Show';
+
+            if (data.probability !== undefined) {
+                const pct = (data.probability * 100).toFixed(1);
+                document.getElementById('risk-factors').innerHTML = `
+                    <p><strong>Prediction:</strong> ${pct}% chance of no-show (${data.risk_level} risk)</p>
+                    <p class="mb-1"><strong>Top Risk Factors:</strong></p>
+                    <ul class="list-unstyled">
+                        ${data.top_risk_factors.map(f =>
+                            `<li><i class="bi bi-dot"></i> ${f.feature}: ${(f.importance * 100).toFixed(1)}%</li>`
+                        ).join('')}
+                    </ul>
+                `;
+            } else {
+                document.getElementById('risk-factors').innerHTML =
+                    `<p class="text-warning">${data.detail || 'Could not generate prediction.'}</p>`;
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-cpu me-1"></i> Predict No-Show';
+            document.getElementById('risk-factors').innerHTML =
+                '<p class="text-danger">Error running prediction.</p>';
+        });
+}
+</script>
+{% endblock %}
